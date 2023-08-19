@@ -1,34 +1,25 @@
 const fs = require("fs/promises");
 const path = require("path");
-const chalk = require("chalk");
 const dataValidate = require("./helpers/dataValidator");
 const checkExtention = require("./helpers/checkExtention");
 
-const createFile = async (fileName, content) => {
-  const file = {
-    fileName,
-    content,
-  };
-
-  const validatedFile = dataValidate(file);
+const createFile = async (req, res) => {
+  const { fileName, content } = req.body;
+  const validatedFile = dataValidate(req.body);
 
   if (validatedFile.error) {
-    console.log(
-      chalk.red(
-        `Please specify ${validatedFile.error.details[0].path[0]} parameter.`
-      )
-    );
+    res.status(400).json({
+      message: `Please specify ${validatedFile.error.details[0].path[0]} parameter.`,
+    });
     return;
   }
 
   const check = checkExtention(fileName);
 
   if (!check.result) {
-    console.log(
-      chalk.red(
-        `Sorry, this app doesn't support files with ${check.extention} extention.`
-      )
-    );
+    res.status(400).json({
+      message: `Sorry, this app doesn't support files with ${check.extention} extention.`,
+    });
     return;
   }
 
@@ -36,35 +27,44 @@ const createFile = async (fileName, content) => {
 
   try {
     await fs.writeFile(filePath, content, "utf-8");
-    console.log(chalk.green("File created succesfully!"));
+    res.status(201).json({
+      message: "File created succesfully!",
+    });
   } catch (error) {
-    console.log(chalk.red(error));
+    console.log(error);
+    res.status(500).json({ message: "Server error." });
   }
 };
 
-const getFiles = async () => {
+const getFiles = async (req, res) => {
   try {
     const folderPath = path.join(__dirname, "files");
 
     const filesList = await fs.readdir(folderPath);
 
     if (!filesList.length) {
-      console.log(chalk.red("Files not exist"));
+      res.status(404).json({
+        message: "Files not exist",
+      });
     } else {
-      console.log(filesList);
+      res.status(200).json(filesList);
     }
   } catch (error) {
-    console.log(chalk.red(error));
+    console.log(error);
+    res.status(500).json({ message: "Server error." });
   }
 };
 
-const getInfo = async (fileName) => {
+const getInfo = async (req, res) => {
+  const { fileName } = req.params;
   try {
     const folderPath = path.join(__dirname, "files");
     const filesList = await fs.readdir(folderPath);
 
     if (!filesList.includes(fileName)) {
-      console.log(chalk.red(`File ${fileName} not exist`));
+      res.status(404).json({
+        message: `File ${fileName} not exist`,
+      });
       return;
     }
 
@@ -72,7 +72,7 @@ const getInfo = async (fileName) => {
     const file = await fs.readFile(filePath, "utf-8");
     const stats = await fs.stat(filePath, "utf-8");
 
-    console.log({
+    res.status(200).json({
       name: path.basename(fileName, path.extname(fileName)),
       extention: path.extname(fileName).slice(1),
       content: file,
@@ -80,7 +80,8 @@ const getInfo = async (fileName) => {
       size: stats.size,
     });
   } catch (error) {
-    console.log(chalk.red(error));
+    console.log(error);
+    res.status(500).json({ message: "Server error." });
   }
 };
 
